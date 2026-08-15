@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YASIN Python Encrypter Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .mobile-card { max-width: 480px; margin: 20px auto; background: #1e293b; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; padding: 24px; }
+        .brand-header { text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px; }
+        .brand-header h3 { color: #38bdf8; font-weight: 700; letter-spacing: 1px; }
+        .form-label { font-size: 0.85rem; color: #94a3b8; font-weight: 600; }
+        .form-control { background-color: #0f172a; border: 1px solid #475569; color: #f8fafc; border-radius: 8px; }
+        .btn-encrypt { background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; border-radius: 10px; padding: 12px; font-weight: bold; color: white; }
+        .time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        
+        .floating-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            background: #38bdf8;
+            color: #0f172a;
+            font-weight: bold;
+            border-radius: 30px;
+            padding: 8px 16px;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.4);
+            border: none;
+        }
+        .offcanvas-custom {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            border-left: 1px solid #334155;
+            width: 380px !important;
+        }
+    </style>
+</head>
+<body>
+
+<button class="btn floating-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#fileListDrawer">
+    📜 ফাইল হিস্ট্রি
+</button>
+
+<div class="container">
+    <div class="mobile-card">
+        <div class="brand-header">
+            <h3>🔒 YASIN ENCRYPTER</h3>
+            <small class="text-secondary">Python Expiry & Security Locker</small>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/" enctype="multipart/form-data">
+            <div class="mb-4">
+                <label class="form-label">📁 পাইথন ফাইল আপলোড করুন (.py)</label>
+                <input type="file" name="file" class="form-control" accept=".py" required>
+            </div>
+
+            <h6 class="text-info mb-2">⏳ এক্সপায়ারি তারিখ সিলেক্ট করুন:</h6>
+            <div class="time-grid mb-3">
+                <div><label class="form-label">বছর</label><input type="number" name="year" class="form-control" value="2026" required></div>
+                <div><label class="form-label">মাস</label><input type="number" name="month" class="form-control" min="1" max="12" value="8" required></div>
+                <div><label class="form-label">তারিখ</label><input type="number" name="day" class="form-control" min="1" max="31" value="16" required></div>
+            </div>
+
+            <h6 class="text-info mb-2">⏱️ সময় সেট করুন (২৪ ঘন্টা ফরম্যাট):</h6>
+            <div class="time-grid mb-4">
+                <div><label class="form-label">ঘণ্টা (0-23)</label><input type="number" name="hour" class="form-control" min="0" max="23" value="23" required></div>
+                <div><label class="form-label">মিনিট (0-59)</label><input type="number" name="minute" class="form-control" min="0" max="59" value="59" required></div>
+                <div><label class="form-label">সেকেন্ড (0-59)</label><input type="number" name="second" class="form-control" min="0" max="59" value="59" required></div>
+            </div>
+
+            <button type="submit" class="btn btn-encrypt w-100">🚀 এনক্রিপ্ট ও ডাউনলোড করুন</button>
+        </form>
+    </div>
+</div>
+
+<!-- Right Side Sliding Drawer -->
+<div class="offcanvas offcanvas-end offcanvas-custom" tabindex="-1" id="fileListDrawer">
+    <div class="offcanvas-header border-bottom border-secondary">
+        <h5 class="offcanvas-title text-warning">📜 এনকোড করা ফাইল তালিকা</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="table-responsive">
+            <table class="table table-dark table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>ফাইল</th>
+                        <th>মেয়াদ (Expiry)</th>
+                        <th>অ্যাকশন</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for file in files %}
+                    <tr>
+                        <td><small>{{ file[1] }}</small></td>
+                        <td><small class="text-info">{{ file[2] }}</small></td>
+                        <td>
+                            <a href="/expire/{{ file[0] }}" class="btn btn-sm btn-outline-warning mb-1">মেয়াদ শেষ</a>
+                            <a href="/delete/{{ file[0] }}" class="btn btn-sm btn-danger mb-1">ডিলিট</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted"><small>কোনো ফাইলের হিস্ট্রি নেই</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
