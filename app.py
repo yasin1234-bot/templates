@@ -3,7 +3,6 @@ import io
 import uuid
 import base64
 import zlib
-import marshal
 import sqlite3
 import urllib.request
 import json
@@ -13,7 +12,6 @@ from flask import Flask, render_template, request, send_file, flash, redirect, u
 app = Flask(__name__)
 app.secret_key = "yasin_sec_key_123"
 
-# SQLite Database Setup
 def init_db():
     conn = sqlite3.connect('history.db')
     cursor = conn.cursor()
@@ -31,11 +29,11 @@ def init_db():
 init_db()
 
 BANNER_TEMPLATE = r"""
-#   __   __          _       ____      ___      _   _ 
+#   __   __         _       ____    ___     _   _ 
 #   \ \ / /         / \     / ___|    |_ _|    | \ | |
-#    \ V /         / _ \    \___ \     | |     |  \| |
+#    \ V /        / _ \    \___ \     | |     |  \| |
 #     | |         / ___ \    ___) |    | |     | |\  |
-#     |_|        /_/   \_\  |____/    |___|    |_| \_|
+#     |_|        /_/   \_\  |____/    |___|   |_| \_|
 #
 #
 #    ENCODED BY YASIN
@@ -47,13 +45,7 @@ BANNER_TEMPLATE = r"""
 """
 
 def generate_obfuscated_code(raw_code, expiry_dt_str, file_id, server_url):
-    wrapper = f"""
-import sys
-import threading
-import time
-import os
-import json
-import urllib.request
+    wrapper = f"""import sys, threading, time, os, json, urllib.request
 from datetime import datetime
 
 EXPIRY_TIME_STR = "{expiry_dt_str}"
@@ -88,7 +80,6 @@ def check_expiry_loop():
 expiry_thread = threading.Thread(target=check_expiry_loop, daemon=True)
 expiry_thread.start()
 
-# Initial Checks
 try:
     exp_dt = datetime.strptime(EXPIRY_TIME_STR, "%Y-%m-%d %H:%M:%S")
     if datetime.now() > exp_dt:
@@ -102,10 +93,8 @@ except Exception:
 
 {raw_code}
 """
-
-    compiled = compile(wrapper, '<yasin_core>', 'exec')
-    marshalled = marshal.dumps(compiled)
-    compressed = zlib.compress(marshalled)
+    # High-level Safe Obfuscation (Zlib + Base64 ohne Marshal)
+    compressed = zlib.compress(wrapper.encode('utf-8'))
     encoded = base64.b64encode(compressed).decode('utf-8')
 
     chunk_size = 60
@@ -113,17 +102,15 @@ except Exception:
     tokens_code_lines = ",\n".join([f"    'YASIN_{c}'" for c in chunks])
     tokens_code = f"TOKENS = [\n{tokens_code_lines}\n]"
 
-    loader = BANNER_TEMPLATE.format(expiry_display=expiry_dt_str) + f"""
-import marshal, zlib, base64, sys
+    loader = BANNER_TEMPLATE.format(expiry_display=expiry_dt_str) + f"""import zlib, base64, sys
 
 {tokens_code}
 
 try:
     raw_b64 = "".join([t.replace("YASIN_", "") for t in TOKENS])
     decoded = base64.b64decode(raw_b64)
-    decompressed = zlib.decompress(decoded)
-    code_obj = marshal.loads(decompressed)
-    exec(code_obj)
+    decompressed = zlib.decompress(decoded).decode('utf-8')
+    exec(decompressed, globals())
 except Exception as e:
     print(f"[!] ERROR: Script execution failed. Details: {{e}}")
     sys.exit(1)
@@ -162,12 +149,16 @@ def index():
                            (file_id, file.filename, expiry_str))
             conn.commit()
 
-            # Memory buffer output (For 100% Render & Railway Cloud compatibility)
             mem_file = io.BytesIO()
-            mem_file.write(protected_code.encode('utf-8'))
+            mem_file.write(protected_code.encode('utf-8-sig'))
             mem_file.seek(0)
 
-            return send_file(mem_file, as_attachment=True, download_name=f"yasin_enc_{file.filename}", mimetype='text/x-python')
+            return send_file(
+                mem_file, 
+                as_attachment=True, 
+                download_name=f"yasin_enc_{file.filename}", 
+                mimetype='text/x-python; charset=utf-8'
+            )
 
         except ValueError:
             flash('তারিখ ও সময় ঠিকমতো পূরণ করুন!', 'error')
@@ -179,7 +170,6 @@ def index():
 
     return render_template('index.html', files=files_list)
 
-# API Endpoint for Remote Status Check
 @app.route('/check_status/<file_id>')
 def check_status(file_id):
     conn = sqlite3.connect('history.db')
